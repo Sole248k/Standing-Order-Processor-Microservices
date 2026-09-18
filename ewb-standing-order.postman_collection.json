@@ -1,0 +1,205 @@
+{
+  "info": {
+    "name": "EastWest Bank (EWB) Standing Order Processor APIs",
+    "_postman_id": "ewb-standing-order-v1",
+    "description": "Collection of APIs for EWB Standing Order Processor microservices covering Standing Orders, Executions, Core Banking Transfers, Ledger, and Notifications.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Standing Orders",
+      "item": [
+        {
+          "name": "Create Standing Order (Maria ₱5,000)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Customer-Id", "value": "CUST-MARIA" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sourceAccountId\": \"EWB-SAL-1001\",\n  \"destinationAccountId\": \"EWB-SAV-2001\",\n  \"amount\": 5000.00,\n  \"currency\": \"PHP\",\n  \"frequency\": \"MONTHLY\",\n  \"dayOfMonth\": 25,\n  \"executionTime\": \"09:00:00\",\n  \"timeZone\": \"Asia/Manila\",\n  \"startDate\": \"2026-10-25\"\n}"
+            },
+            "url": { "raw": "http://localhost:8080/api/standing-orders" }
+          }
+        },
+        {
+          "name": "List Standing Orders",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-Customer-Id", "value": "CUST-MARIA" }
+            ],
+            "url": { "raw": "http://localhost:8080/api/standing-orders" }
+          }
+        },
+        {
+          "name": "Pause Standing Order",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-Customer-Id", "value": "CUST-MARIA" }
+            ],
+            "url": { "raw": "http://localhost:8080/api/standing-orders/1/pause" }
+          }
+        },
+        {
+          "name": "Resume Standing Order",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-Customer-Id", "value": "CUST-MARIA" }
+            ],
+            "url": { "raw": "http://localhost:8080/api/standing-orders/1/resume" }
+          }
+        },
+        {
+          "name": "Amend Standing Order",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Customer-Id", "value": "CUST-MARIA" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 6000.00,\n  \"dayOfMonth\": 26,\n  \"reason\": \"Amended monthly amount\"\n}"
+            },
+            "url": { "raw": "http://localhost:8080/api/standing-orders/1" }
+          }
+        },
+        {
+          "name": "Get Order Version Audit History",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "http://localhost:8080/api/standing-orders/1/versions" }
+          }
+        },
+        {
+          "name": "Cancel Standing Order",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-Customer-Id", "value": "CUST-MARIA" }
+            ],
+            "url": { "raw": "http://localhost:8080/api/standing-orders/1/cancel" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Execution Engine",
+      "item": [
+        {
+          "name": "Trigger Discovery & Execution Cycle",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "http://localhost:8080/api/executions/trigger-discovery" }
+          }
+        },
+        {
+          "name": "List All Executions",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "http://localhost:8080/api/executions" }
+          }
+        },
+        {
+          "name": "Get Execution by ID",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "http://localhost:8080/api/executions/1" }
+          }
+        },
+        {
+          "name": "Resolve Uncertain Execution (Recovery)",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "http://localhost:8080/api/executions/1/resolve" }
+          }
+        },
+        {
+          "name": "Inspect Transactional Outbox Events",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "http://localhost:8080/api/executions/outbox" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Core Banking Payments & Ledger",
+      "item": [
+        {
+          "name": "List All Bank Accounts",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "http://localhost:8080/api/accounts" }
+          }
+        },
+        {
+          "name": "Execute Transfer Idempotently",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sourceAccountId\": \"EWB-SAL-1001\",\n  \"destinationAccountId\": \"EWB-SAV-2001\",\n  \"amount\": 5000.00,\n  \"currency\": \"PHP\",\n  \"idempotencyKey\": \"MANUAL-TX-001\"\n}"
+            },
+            "url": { "raw": "http://localhost:8080/api/transfers" }
+          }
+        },
+        {
+          "name": "Query Transfer by Reference",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "http://localhost:8080/api/transfers/by-reference/REF-001" }
+          }
+        },
+        {
+          "name": "Get Double-Entry Ledger",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "http://localhost:8080/api/transfers/ledger" }
+          }
+        },
+        {
+          "name": "Reset Demo Balances",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "http://localhost:8080/api/accounts/reset" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "List Customer Notifications",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "http://localhost:8080/api/notifications?customerId=CUST-MARIA" }
+          }
+        },
+        {
+          "name": "Toggle Notification Outage",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"outage\": true\n}"
+            },
+            "url": { "raw": "http://localhost:8080/api/notifications/simulate-outage" }
+          }
+        }
+      ]
+    }
+  ]
+}

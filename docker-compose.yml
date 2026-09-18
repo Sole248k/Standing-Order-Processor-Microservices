@@ -1,0 +1,128 @@
+version: '3.8'
+
+services:
+  ewb-postgres:
+    image: postgres:16-alpine
+    container_name: ewb-postgres
+    environment:
+      POSTGRES_USER: ewb_user
+      POSTGRES_PASSWORD: ewb_pass
+      POSTGRES_DB: ewb_main_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./docker/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ewb_user"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ewb-network
+
+  ewb-payment-service:
+    build:
+      context: .
+      dockerfile: ewb-payment-service/Dockerfile
+    container_name: ewb-payment-service
+    ports:
+      - "8083:8083"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      DB_HOST: ewb-postgres
+      DB_PORT: 5432
+      DB_USER: ewb_user
+      DB_PASSWORD: ewb_pass
+    depends_on:
+      ewb-postgres:
+        condition: service_healthy
+    networks:
+      - ewb-network
+
+  ewb-standing-order-service:
+    build:
+      context: .
+      dockerfile: ewb-standing-order-service/Dockerfile
+    container_name: ewb-standing-order-service
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      DB_HOST: ewb-postgres
+      DB_PORT: 5432
+      DB_USER: ewb_user
+      DB_PASSWORD: ewb_pass
+    depends_on:
+      ewb-postgres:
+        condition: service_healthy
+    networks:
+      - ewb-network
+
+  ewb-notification-service:
+    build:
+      context: .
+      dockerfile: ewb-notification-service/Dockerfile
+    container_name: ewb-notification-service
+    ports:
+      - "8084:8084"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      DB_HOST: ewb-postgres
+      DB_PORT: 5432
+      DB_USER: ewb_user
+      DB_PASSWORD: ewb_pass
+    depends_on:
+      ewb-postgres:
+        condition: service_healthy
+    networks:
+      - ewb-network
+
+  ewb-execution-service:
+    build:
+      context: .
+      dockerfile: ewb-execution-service/Dockerfile
+    container_name: ewb-execution-service
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      DB_HOST: ewb-postgres
+      DB_PORT: 5432
+      DB_USER: ewb_user
+      DB_PASSWORD: ewb_pass
+    depends_on:
+      ewb-postgres:
+        condition: service_healthy
+      ewb-standing-order-service:
+        condition: service_started
+      ewb-payment-service:
+        condition: service_started
+      ewb-notification-service:
+        condition: service_started
+    networks:
+      - ewb-network
+
+  ewb-gateway:
+    build:
+      context: .
+      dockerfile: ewb-gateway/Dockerfile
+    container_name: ewb-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    depends_on:
+      - ewb-standing-order-service
+      - ewb-execution-service
+      - ewb-payment-service
+      - ewb-notification-service
+    networks:
+      - ewb-network
+
+networks:
+  ewb-network:
+    driver: bridge
+
+volumes:
+  postgres_data:

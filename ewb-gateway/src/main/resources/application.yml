@@ -1,0 +1,35 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: ewb-gateway
+  web:
+    resources:
+      static-locations: classpath:/static/
+
+services:
+  standing-order:
+    url: http://localhost:8081
+  execution:
+    url: http://localhost:8082
+  payment:
+    url: http://localhost:8083
+  notification:
+    url: http://localhost:8084
+
+---
+spring:
+  config:
+    activate:
+      on-profile: docker
+
+services:
+  standing-order:
+    url: http://ewb-standing-order-service:8081
+  execution:
+    url: http://ewb-execution-service:8082
+  payment:
+    url: http://ewb-payment-service:8083
+  notification:
+    url: http://ewb-notification-service:8084

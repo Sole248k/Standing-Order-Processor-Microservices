@@ -1,0 +1,51 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: ewb-execution-service
+  datasource:
+    url: jdbc:h2:mem:execution_db;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
+    driverClassName: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+services:
+  standing-order:
+    url: http://localhost:8081
+  payment:
+    url: http://localhost:8083
+  notification:
+    url: http://localhost:8084
+
+---
+spring:
+  config:
+    activate:
+      on-profile: docker
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:ewb-postgres}:${DB_PORT:5432}/execution_db
+    driverClassName: org.postgresql.Driver
+    username: ${DB_USER:ewb_user}
+    password: ${DB_PASSWORD:ewb_pass}
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: update
+
+services:
+  standing-order:
+    url: http://ewb-standing-order-service:8081
+  payment:
+    url: http://ewb-payment-service:8083
+  notification:
+    url: http://ewb-notification-service:8084

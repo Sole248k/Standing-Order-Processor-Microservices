@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EWB Standing Order Processor - Microservices Console</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Top Navigation -->
+        <header class="navbar glass-card">
+            <div class="brand">
+                <div class="logo-icon">EWB</div>
+                <div class="brand-text">
+                    <h1>EastWest Bank</h1>
+                    <span class="subtext">Standing Order Microservices Platform</span>
+                </div>
+            </div>
+
+            <div class="nav-controls">
+                <div class="role-selector">
+                    <label for="roleSelect">Active Persona:</label>
+                    <select id="roleSelect" onchange="changePersona(this.value)">
+                        <option value="CUSTOMER">👤 Maria Santos (Customer)</option>
+                        <option value="OPERATIONS">⚙️ Operations Lead (Ops)</option>
+                        <option value="AUDITOR">🛡️ Compliance Auditor (Audit)</option>
+                    </select>
+                </div>
+                <button class="btn btn-outline btn-sm" onclick="refreshAllData()">🔄 Refresh</button>
+            </div>
+        </header>
+
+        <!-- Main Navigation Tabs -->
+        <nav class="tab-bar">
+            <button class="tab-btn active" id="tabCustomerBtn" onclick="switchTab('customer')">
+                <span class="tab-icon">💳</span> Customer Portal
+            </button>
+            <button class="tab-btn" id="tabOpsBtn" onclick="switchTab('ops')">
+                <span class="tab-icon">⚡</span> Operations Console
+            </button>
+            <button class="tab-btn" id="tabAuditBtn" onclick="switchTab('audit')">
+                <span class="tab-icon">📜</span> Ledger &amp; Audit Log
+            </button>
+            <button class="tab-btn" id="tabScenariosBtn" onclick="switchTab('scenarios')">
+                <span class="tab-icon">🧪</span> Acceptance Test Runner
+            </button>
+        </nav>
+
+        <!-- Notification Bar / Alert Banner -->
+        <div id="statusBanner" class="status-banner hidden"></div>
+
+        <!-- TAB 1: CUSTOMER VIEW -->
+        <main id="tabCustomer" class="tab-content active">
+            <!-- Accounts Summary -->
+            <section class="section-container">
+                <div class="section-header">
+                    <h2>Bank Accounts Overview</h2>
+                    <span class="badge badge-info">Source &amp; Destination Accounts</span>
+                </div>
+                <div class="accounts-grid" id="accountsList">
+                    <!-- Populated via JS -->
+                </div>
+            </section>
+
+            <!-- Instructions Section -->
+            <section class="section-container">
+                <div class="section-header">
+                    <h2>My Recurring Standing Orders</h2>
+                    <div class="header-actions">
+                        <button class="btn btn-primary" onclick="openCreateModal()">+ Create Standing Order</button>
+                        <button class="btn btn-secondary" onclick="seedMariaOrder()">⚡ Seed Maria's ₱5,000 Order</button>
+                    </div>
+                </div>
+
+                <div class="table-card glass-card">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Transfer Flow</th>
+                                <th>Amount</th>
+                                <th>Schedule</th>
+                                <th>Next Execution</th>
+                                <th>Version</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ordersTableBody">
+                            <tr><td colspan="8" class="text-center">Loading standing orders...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Notifications Feed -->
+            <section class="section-container">
+                <div class="section-header">
+                    <h2>Customer SMS &amp; Email Notifications</h2>
+                    <span class="badge badge-neutral">Deduplicated Outbox Deliveries</span>
+                </div>
+                <div class="notifications-feed glass-card" id="notificationsFeed">
+                    <p class="empty-state">No notifications received yet.</p>
+                </div>
+            </section>
+        </main>
+
+        <!-- TAB 2: OPERATIONS CONSOLE -->
+        <main id="tabOps" class="tab-content">
+            <section class="section-container">
+                <div class="section-header">
+                    <h2>Execution Engine Control</h2>
+                    <div class="header-actions">
+                        <button class="btn btn-success" onclick="triggerDiscovery()">⚡ Run Due Discovery &amp; Execution</button>
+                        <button class="btn btn-danger" onclick="resetDemoData()">🔄 Reset Core Banking Balances</button>
+                        <button class="btn btn-warning" id="btnToggleOutage" onclick="toggleNotificationOutage()">⚠️ Toggle Notification Outage</button>
+                    </div>
+                </div>
+
+                <div class="kpi-grid">
+                    <div class="kpi-card glass-card">
+                        <span class="kpi-label">Total Executions</span>
+                        <span class="kpi-value" id="kpiTotalExec">0</span>
+                    </div>
+                    <div class="kpi-card glass-card">
+                        <span class="kpi-label">Successful</span>
+                        <span class="kpi-value text-success" id="kpiSuccessExec">0</span>
+                    </div>
+                    <div class="kpi-card glass-card">
+                        <span class="kpi-label">Failed</span>
+                        <span class="kpi-value text-danger" id="kpiFailedExec">0</span>
+                    </div>
+                    <div class="kpi-card glass-card">
+                        <span class="kpi-label">Unresolved (Lost Response)</span>
+                        <span class="kpi-value text-warning" id="kpiUnresolvedExec">0</span>
+                    </div>
+                </div>
+
+                <!-- Executions Table -->
+                <div class="section-header mt-4">
+                    <h3>Execution History &amp; Retry Tracker</h3>
+                    <span class="badge badge-info">Deduplicated by (Standing Order + Occurrence)</span>
+                </div>
+                <div class="table-card glass-card">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Exec ID</th>
+                                <th>Order ID</th>
+                                <th>Scheduled Time</th>
+                                <th>Idempotency Key</th>
+                                <th>Payment Ref</th>
+                                <th>Status</th>
+                                <th>Attempts</th>
+                                <th>Recovery</th>
+                            </tr>
+                        </thead>
+                        <tbody id="executionsTableBody">
+                            <tr><td colspan="8" class="text-center">No executions recorded yet.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Transactional Outbox -->
+                <div class="section-header mt-4">
+                    <h3>Transactional Outbox Table</h3>
+                    <span class="badge badge-neutral">Guaranteed At-Least-Once Delivery</span>
+                </div>
+                <div class="table-card glass-card">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Event ID</th>
+                                <th>Exec ID</th>
+                                <th>Event Type</th>
+                                <th>Status</th>
+                                <th>Retries</th>
+                                <th>Created At</th>
+                            </tr>
+                        </thead>
+                        <tbody id="outboxTableBody">
+                            <tr><td colspan="6" class="text-center">No outbox events.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+
+        <!-- TAB 3: AUDITOR & COMPLIANCE -->
+        <main id="tabAudit" class="tab-content">
+            <section class="section-container">
+                <div class="section-header">
+                    <h2>Double-Entry Core Banking Ledger</h2>
+                    <span class="badge badge-success">Atomic Financial Movements (Debit &amp; Credit)</span>
+                </div>
+                <div class="table-card glass-card">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Entry ID</th>
+                                <th>Transfer Ref</th>
+                                <th>Account</th>
+                                <th>Type</th>
+                                <th>Amount</th>
+                                <th>Balance After</th>
+                                <th>Timestamp</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ledgerTableBody">
+                            <tr><td colspan="7" class="text-center">No ledger entries recorded.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Version History Inspection -->
+                <div class="section-header mt-4">
+                    <h2>Instruction Audit &amp; Version Snapshots</h2>
+                    <span class="badge badge-neutral">Immutable Audit Trail</span>
+                </div>
+                <div class="table-card glass-card">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Order ID</th>
+                                <th>Version</th>
+                                <th>Action</th>
+                                <th>Modified By</th>
+                                <th>Reason</th>
+                                <th>Timestamp</th>
+                                <th>Snapshot</th>
+                            </tr>
+                        </thead>
+                        <tbody id="auditVersionsTableBody">
+                            <tr><td colspan="7" class="text-center">Select an order or load versions.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+
+        <!-- TAB 4: ACCEPTANCE SCENARIOS RUNNER -->
+        <main id="tabScenarios" class="tab-content">
+            <section class="section-container">
+                <div class="section-header">
+                    <h2>Case Study Acceptance Scenarios (Section 9)</h2>
+                    <span class="badge badge-info">Automated End-to-End Test Suite</span>
+                </div>
+
+                <div class="scenarios-grid">
+                    <!-- Scenario 1 -->
+                    <div class="scenario-card glass-card">
+                        <div class="scenario-badge">Scenario 1</div>
+                        <h3>Successful Transfer</h3>
+                        <p>Source ₱20,000; Dest ₱1,000; Transfer ₱5,000.</p>
+                        <div class="expected">Expected: Source ₱15,000; Destination ₱6,000; Notification delivered.</div>
+                        <button class="btn btn-primary btn-sm" onclick="runScenario(1)">▶ Run Scenario 1</button>
+                    </div>
+
+                    <!-- Scenario 2 -->
+                    <div class="scenario-card glass-card">
+                        <div class="scenario-badge">Scenario 2</div>
+                        <h3>Insufficient Funds</h3>
+                        <p>Source ₱2,000 (EWB-SAL-1002); Transfer ₱5,000.</p>
+                        <div class="expected">Expected: Occurrence fails; balances unchanged; recurring schedule preserved.</div>
+                        <button class="btn btn-primary btn-sm" onclick="runScenario(2)">▶ Run Scenario 2</button>
+                    </div>
+
+                    <!-- Scenario 3 -->
+                    <div class="scenario-card glass-card">
+                        <div class="scenario-badge">Scenario 3</div>
+                        <h3>Frozen Account</h3>
+                        <p>Source is FROZEN (EWB-SAL-FROZEN); Transfer ₱5,000.</p>
+                        <div class="expected">Expected: Rejected payment with reason; no ledger movement.</div>
+                        <button class="btn btn-primary btn-sm" onclick="runScenario(3)">▶ Run Scenario 3</button>
+                    </div>
+
+                    <!-- Scenario 4 -->
+                    <div class="scenario-card glass-card">
+                        <div class="scenario-badge">Scenario 4</div>
+                        <h3>Duplicate Request Prevention</h3>
+                        <p>Submit same occurrence / idempotency key twice.</p>
+                        <div class="expected">Expected: Exactly one debit and one credit; cached result returned.</div>
+                        <button class="btn btn-primary btn-sm" onclick="runScenario(4)">▶ Run Scenario 4</button>
+                    </div>
+
+                    <!-- Scenario 5 -->
+                    <div class="scenario-card glass-card">
+                        <div class="scenario-badge">Scenario 5</div>
+                        <h3>Lost Response &amp; Recovery</h3>
+                        <p>Payment commits, then simulated timeout happens.</p>
+                        <div class="expected">Expected: Execution marked UNRESOLVED; recovery resolves SUCCESS; NO second debit.</div>
+                        <button class="btn btn-primary btn-sm" onclick="runScenario(5)">▶ Run Scenario 5</button>
+                    </div>
+
+                    <!-- Scenario 6 -->
+                    <div class="scenario-card glass-card">
+                        <div class="scenario-badge">Scenario 6</div>
+                        <h3>Paused Instruction</h3>
+                        <p>Pause standing order before execution.</p>
+                        <div class="expected">Expected: Instruction ignored by scheduler; no new payment executed.</div>
+                        <button class="btn btn-primary btn-sm" onclick="runScenario(6)">▶ Run Scenario 6</button>
+                    </div>
+
+                    <!-- Scenario 7 -->
+                    <div class="scenario-card glass-card">
+                        <div class="scenario-badge">Scenario 7</div>
+                        <h3>Month-End Schedule (Day 31)</h3>
+                        <p>Order scheduled for day 31 of every month.</p>
+                        <div class="expected">Expected: In shorter months (Feb 28/29, Apr 30), executes on last day of month.</div>
+                        <button class="btn btn-primary btn-sm" onclick="runScenario(7)">▶ Run Scenario 7</button>
+                    </div>
+
+                    <!-- Scenario 8 -->
+                    <div class="scenario-card glass-card">
+                        <div class="scenario-badge">Scenario 8</div>
+                        <h3>Notification Outage &amp; Retry</h3>
+                        <p>Payment succeeds while notification service is down.</p>
+                        <div class="expected">Expected: Payment commits safely; outbox retries when service recovers.</div>
+                        <button class="btn btn-primary btn-sm" onclick="runScenario(8)">▶ Run Scenario 8</button>
+                    </div>
+                </div>
+
+                <div class="console-output glass-card mt-4">
+                    <div class="console-header">
+                        <span>Terminal Execution Log</span>
+                        <button class="btn btn-xs btn-outline" onclick="clearConsole()">Clear Log</button>
+                    </div>
+                    <pre id="testOutput">Ready to execute acceptance scenarios...</pre>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- CREATE STANDING ORDER MODAL -->
+    <div id="createModal" class="modal-overlay hidden">
+        <div class="modal glass-card">
+            <div class="modal-header">
+                <h3>Create New Standing Order</h3>
+                <button class="close-btn" onclick="closeCreateModal()">&times;</button>
+            </div>
+            <form id="createOrderForm" onsubmit="handleCreateOrder(event)">
+                <div class="form-group">
+                    <label>Source Account</label>
+                    <select id="modalSourceAccount" required>
+                        <option value="EWB-SAL-1001">EWB-SAL-1001 (Maria Salary - ₱20,000)</option>
+                        <option value="EWB-SAL-1002">EWB-SAL-1002 (Low Balance - ₱2,000)</option>
+                        <option value="EWB-SAL-FROZEN">EWB-SAL-FROZEN (Frozen - ₱50,000)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Destination Account</label>
+                    <input type="text" id="modalDestAccount" value="EWB-SAV-2001" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Amount (PHP)</label>
+                        <input type="number" id="modalAmount" value="5000.00" step="0.01" min="0.01" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Frequency</label>
+                        <select id="modalFrequency">
+                            <option value="MONTHLY">Monthly</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Day of Month (1-31)</label>
+                        <input type="number" id="modalDayOfMonth" value="25" min="1" max="31" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Execution Time</label>
+                        <input type="time" id="modalExecutionTime" value="09:00" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Time Zone</label>
+                        <input type="text" id="modalTimeZone" value="Asia/Manila" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Start Date</label>
+                        <input type="date" id="modalStartDate" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>End Date (Optional)</label>
+                    <input type="date" id="modalEndDate">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline" onclick="closeCreateModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Instruction</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- AMEND MODAL -->
+    <div id="amendModal" class="modal-overlay hidden">
+        <div class="modal glass-card">
+            <div class="modal-header">
+                <h3>Amend Standing Order</h3>
+                <button class="close-btn" onclick="closeAmendModal()">&times;</button>
+            </div>
+            <form id="amendOrderForm" onsubmit="handleAmendOrder(event)">
+                <input type="hidden" id="amendOrderId">
+                <div class="form-group">
+                    <label>New Amount (PHP)</label>
+                    <input type="number" id="amendAmount" step="0.01" min="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label>New Day of Month (1-31)</label>
+                    <input type="number" id="amendDayOfMonth" min="1" max="31" required>
+                </div>
+                <div class="form-group">
+                    <label>Reason for Amendment</label>
+                    <input type="text" id="amendReason" value="Adjust monthly savings amount" required>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline" onclick="closeAmendModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Amendment (Bump Version)</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- VERSIONS MODAL -->
+    <div id="versionModal" class="modal-overlay hidden">
+        <div class="modal glass-card" style="max-width: 700px;">
+            <div class="modal-header">
+                <h3>Instruction Version History</h3>
+                <button class="close-btn" onclick="closeVersionModal()">&times;</button>
+            </div>
+            <div id="versionListContainer" style="max-height: 400px; overflow-y: auto;">
+                <!-- Filled via JS -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="closeVersionModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
